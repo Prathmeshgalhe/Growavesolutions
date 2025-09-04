@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growave Energy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .neumorphic {
+            background: #f0f4f8;
+            box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
+            border-radius: 16px;
+        }
+
+        .neumorphic-inset {
+            background: #f0f4f8;
+            box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff;
+            border-radius: 12px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #cbd5e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .efficiency-ring {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            position: relative;
+            background: conic-gradient(#10b981 0deg 270deg, #e5e7eb 270deg 360deg);
+        }
+
+        .efficiency-ring::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .efficiency-ring.wasteful {
+            background: conic-gradient(#ef4444 0deg 180deg, #e5e7eb 180deg 360deg);
+        }
+
+        .notification-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .notification-dropdown.active {
+            max-height: 300px;
+        }
+
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-lg border-b-4 border-green-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold">
+                        <i class="fas fa-bolt text-green-500 mr-2"></i>
+                        <span class="text-green-600">Growave</span> <span class="text-blue-600">Solutions</span>
+                    </h1>
+                    <div class="mt-2">
+                        <h2 class="text-xl font-semibold text-blue-600" id="instituteName">ABC Institute of Tech</h2>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <span class="inline-flex items-center">
+                                <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse-slow"></span>
+                                Subscription Active • Next Renewal: 31st December
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="relative">
+                    <button onclick="toggleNotifications()" class="relative p-3 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors">
+                        <i class="fas fa-bell text-blue-600 text-xl"></i>
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center" id="notificationCount">3</span>
+                    </button>
+
+                    <div id="notificationDropdown" class="notification-dropdown absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border z-50">
+                        <div class="p-4 border-b">
+                            <h3 class="font-semibold text-gray-800">Recent Alerts</h3>
+                        </div>
+                        <div class="max-h-64 overflow-y-auto">
+                            <div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+                                <div class="flex items-start">
+                                    <i class="fas fa-lightbulb text-yellow-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">Room 102 Printer ON</p>
+                                        <p class="text-xs text-gray-600">No Occupancy Detected</p>
+                                        <p class="text-xs text-gray-400 mt-1">2 min ago</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 border-b hover:bg-gray-50 cursor-pointer">
+                                <div class="flex items-start">
+                                    <i class="fas fa-snowflake text-blue-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">AI Lab 4 PC running</p>
+                                        <p class="text-xs text-gray-600">No Occupancy Detected</p>
+                                        <p class="text-xs text-gray-400 mt-1">5 min ago</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 hover:bg-gray-50 cursor-pointer">
+                                <div class="flex items-start">
+                                    <i class="fas fa-hand-paper text-orange-500 mt-1 mr-3"></i>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">Conference Hall</p>
+                                        <p class="text-xs text-gray-600">Manual Override Active</p>
+                                        <p class="text-xs text-gray-400 mt-1">8 min ago</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Main Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="neumorphic p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Usage Today</p>
+                        <p class="text-3xl font-bold text-blue-600" id="totalUsage">247.8</p>
+                        <p class="text-sm text-gray-500">kWh</p>
+                    </div>
+                    <i class="fas fa-chart-line text-4xl text-blue-500"></i>
+                </div>
+            </div>
+
+            <div class="neumorphic p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Estimated Savings</p>
+                        <div class="flex items-center">
+                            <p class="text-3xl font-bold text-green-600" id="savings">23.4</p>
+                            <i class="fas fa-arrow-up text-green-500 ml-2"></i>
+                        </div>
+                        <p class="text-sm text-gray-500">%</p>
+                    </div>
+                    <i class="fas fa-leaf text-4xl text-green-500"></i>
+                </div>
+            </div>
+
+            <div class="neumorphic p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Peak Usage Time</p>
+                        <p class="text-2xl font-bold text-orange-600" id="peakTime">14:30</p>
+                        <p class="text-sm text-gray-500">Today</p>
+                    </div>
+                    <i class="fas fa-clock text-4xl text-orange-500"></i>
+                </div>
+            </div>
+
+            <div class="neumorphic p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Active Zones</p>
+                        <p class="text-3xl font-bold text-purple-600" id="activeZones">12</p>
+                        <p class="text-sm text-gray-500">of 15 zones</p>
+                    </div>
+                    <i class="fas fa-map-marker-alt text-4xl text-purple-500"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Appliance Summary -->
+        <div class="neumorphic p-6 mb-8 fade-in">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Appliance Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <i class="fas fa-fan text-3xl text-blue-500 mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="fanCount">24</p>
+                    <p class="text-sm text-gray-600">Fans Active</p>
+                </div>
+                <div class="text-center">
+                    <i class="fas fa-lightbulb text-3xl text-yellow-500 mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="lightCount">67</p>
+                    <p class="text-sm text-gray-600">Lights On</p>
+                </div>
+                <div class="text-center">
+                    <i class="fas fa-snowflake text-3xl text-cyan-500 mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="acCount">8</p>
+                    <p class="text-sm text-gray-600">ACs Running</p>
+                </div>
+                <div class="text-center">
+                    <i class="fas fa-plug text-3xl text-gray-500 mb-2"></i>
+                    <p class="text-2xl font-bold text-gray-800" id="otherCount">15</p>
+                    <p class="text-sm text-gray-600">Others</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="neumorphic p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Hourly Electricity Usage</h3>
+                <canvas id="hourlyChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="neumorphic p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Room-wise Power Consumption</h3>
+                <canvas id="roomChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="neumorphic p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Appliance-wise Usage</h3>
+                <canvas id="applianceChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="neumorphic p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Environmental Analytics</h3>
+                <canvas id="environmentChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Room-Wise Monitoring -->
+        <div class="mb-8">
+            <h3 class="text-2xl font-semibold text-gray-800 mb-6">Room-Wise Monitoring</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="roomCards">
+                <!-- Room cards will be generated by JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-600">
+                    <i class="fas fa-bolt text-green-500 mr-1"></i>
+                    Powered by Growave Solutions
+                </p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="text-gray-600 hover:text-blue-600 transition-colors">Contact</a>
+                    <a href="#" class="text-gray-600 hover:text-blue-600 transition-colors">Support</a>
+                    <a href="#" class="text-gray-600 hover:text-blue-600 transition-colors">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Room data
+        const rooms = [
+            {
+                name: "AI Lab 2",
+                temp: 24,
+                humidity: 45,
+                co2: 420,
+                light: 750,
+                occupancy: "High",
+                appliances: { fan: true, light: true, ac: true, others: false },
+                mode: "Auto",
+                efficient: true
+            },
+            {
+                name: "Conference Room",
+                temp: 22,
+                humidity: 38,
+                co2: 380,
+                light: 650,
+                occupancy: "Mid",
+                appliances: { fan: false, light: true, ac: true, others: true },
+                mode: "Manual",
+                efficient: true
+            },
+            {
+                name: "Library Hall",
+                temp: 26,
+                humidity: 52,
+                co2: 450,
+                light: 800,
+                occupancy: "Low",
+                appliances: { fan: true, light: true, ac: false, others: false },
+                mode: "Auto",
+                efficient: false
+            },
+            {
+                name: "Cafeteria",
+                temp: 28,
+                humidity: 60,
+                co2: 520,
+                light: 900,
+                occupancy: "High",
+                appliances: { fan: true, light: true, ac: true, others: true },
+                mode: "Auto",
+                efficient: false
+            },
+            {
+                name: "Lecture Hall A",
+                temp: 23,
+                humidity: 42,
+                co2: 400,
+                light: 700,
+                occupancy: "Mid",
+                appliances: { fan: true, light: true, ac: true, others: false },
+                mode: "Auto",
+                efficient: true
+            },
+            {
+                name: "Computer Lab",
+                temp: 21,
+                humidity: 35,
+                co2: 360,
+                light: 850,
+                occupancy: "High",
+                appliances: { fan: false, light: true, ac: true, others: true },
+                mode: "Auto",
+                efficient: true
+            }
+        ];
+
+        // Generate room cards
+        function generateRoomCards() {
+            const container = document.getElementById('roomCards');
+            container.innerHTML = '';
+
+            rooms.forEach((room, index) => {
+                const occupancyColor = room.occupancy === 'High' ? 'text-red-600' :
+                                     room.occupancy === 'Mid' ? 'text-yellow-600' : 'text-green-600';
+
+                const card = document.createElement('div');
+                card.className = 'neumorphic p-6 fade-in';
+                card.style.animationDelay = `${index * 0.1}s`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800">${room.name}</h4>
+                        <div class="efficiency-ring ${room.efficient ? '' : 'wasteful'}">
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="text-xs font-bold text-gray-700">${room.efficient ? '85%' : '45%'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+                        <div class="neumorphic-inset p-2 text-center">
+                            <i class="fas fa-thermometer-half text-red-500"></i>
+                            <p class="font-semibold">${room.temp}°C</p>
+                        </div>
+                        <div class="neumorphic-inset p-2 text-center">
+                            <i class="fas fa-tint text-blue-500"></i>
+                            <p class="font-semibold">${room.humidity}%</p>
+                        </div>
+                        <div class="neumorphic-inset p-2 text-center">
+                            <i class="fas fa-wind text-gray-500"></i>
+                            <p class="font-semibold">${room.co2} ppm</p>
+                        </div>
+                        <div class="neumorphic-inset p-2 text-center">
+                            <i class="fas fa-sun text-yellow-500"></i>
+                            <p class="font-semibold">${room.light} lux</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <span class="text-sm text-gray-600">Occupancy:</span>
+                            <span class="font-semibold ${occupancyColor}">${room.occupancy}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-sm text-gray-600 mr-2">${room.mode}</span>
+                            <div class="toggle-switch ${room.mode === 'Auto' ? 'active' : ''}" onclick="toggleMode(this)">
+                                <div class="toggle-slider"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-4">
+                        <p class="text-sm font-medium text-gray-700 mb-3">Appliance Controls</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button class="appliance-btn ${room.appliances.fan ? 'active' : ''}" onclick="toggleAppliance(this)" data-type="fan">
+                                <i class="fas fa-fan"></i>
+                            </button>
+                            <button class="appliance-btn ${room.appliances.light ? 'active' : ''}" onclick="toggleAppliance(this)" data-type="light">
+                                <i class="fas fa-lightbulb"></i>
+                            </button>
+                            <button class="appliance-btn ${room.appliances.ac ? 'active' : ''}" onclick="toggleAppliance(this)" data-type="ac">
+                                <i class="fas fa-snowflake"></i>
+                            </button>
+                            <button class="appliance-btn ${room.appliances.others ? 'active' : ''}" onclick="toggleAppliance(this)" data-type="others">
+                                <i class="fas fa-plug"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // Toggle functions
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        function toggleMode(element) {
+            element.classList.toggle('active');
+            const modeText = element.previousElementSibling;
+            modeText.textContent = element.classList.contains('active') ? 'Auto' : 'Manual';
+        }
+
+        function toggleAppliance(button) {
+            button.classList.toggle('active');
+            // Update appliance counts
+            updateApplianceCounts();
+        }
+
+        function updateApplianceCounts() {
+            const fanButtons = document.querySelectorAll('[data-type="fan"].active');
+            const lightButtons = document.querySelectorAll('[data-type="light"].active');
+            const acButtons = document.querySelectorAll('[data-type="ac"].active');
+            const otherButtons = document.querySelectorAll('[data-type="others"].active');
+
+            document.getElementById('fanCount').textContent = fanButtons.length;
+            document.getElementById('lightCount').textContent = lightButtons.length;
+            document.getElementById('acCount').textContent = acButtons.length;
+            document.getElementById('otherCount').textContent = otherButtons.length;
+        }
+
+        // Initialize charts
+        function initCharts() {
+            // Hourly Usage Chart
+            const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+            new Chart(hourlyCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                    datasets: [{
+                        label: 'Power Usage (kWh)',
+                        data: [15, 8, 25, 35, 42, 38, 20],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Room-wise Chart
+            const roomCtx = document.getElementById('roomChart').getContext('2d');
+            new Chart(roomCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['AI Lab 2', 'Conference', 'Library', 'Cafeteria', 'Lecture A', 'Comp Lab'],
+                    datasets: [{
+                        label: 'Power (kWh)',
+                        data: [45, 32, 28, 65, 38, 42],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Appliance Chart
+            const applianceCtx = document.getElementById('applianceChart').getContext('2d');
+            new Chart(applianceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Fans', 'Lights', 'ACs', 'Others'],
+                    datasets: [{
+                        data: [35, 28, 25, 12],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#06b6d4', '#6b7280']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Environment Chart
+            const envCtx = document.getElementById('environmentChart').getContext('2d');
+            new Chart(envCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: [22, 21, 23, 26, 28, 25, 23],
+                            borderColor: '#ef4444',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            data: [45, 48, 42, 38, 35, 40, 44],
+                            borderColor: '#3b82f6',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'CO₂ (ppm/10)',
+                            data: [38, 35, 42, 45, 48, 44, 40],
+                            borderColor: '#10b981',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Real-time updates
+        function updateRealTimeData() {
+            // Update main dashboard values
+            const usage = (Math.random() * 50 + 200).toFixed(1);
+            const savings = (Math.random() * 10 + 20).toFixed(1);
+
+            document.getElementById('totalUsage').textContent = usage;
+            document.getElementById('savings').textContent = savings;
+
+            // Update time
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' +
+                             now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('peakTime').textContent = timeString;
+        }
+
+        // Add CSS for appliance buttons
+        const style = document.createElement('style');
+        style.textContent = `
+            .appliance-btn {
+                padding: 8px;
+                border-radius: 8px;
+                border: none;
+                background: #e5e7eb;
+                color: #6b7280;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 2px 2px 4px #d1d5db, -2px -2px 4px #ffffff;
+            }
+
+            .appliance-btn:hover {
+                transform: translateY(-1px);
+            }
+
+            .appliance-btn.active {
+                background: #10b981;
+                color: white;
+                box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            generateRoomCards();
+            initCharts();
+            updateRealTimeData();
+
+            // Update data every 15 seconds
+            setInterval(updateRealTimeData, 15000);
+
+            // Close notifications when clicking outside
+            document.addEventListener('click', function(e) {
+                const dropdown = document.getElementById('notificationDropdown');
+                const button = e.target.closest('button');
+                if (!button || !button.onclick || button.onclick.toString().indexOf('toggleNotifications') === -1) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96b6d6c271543bb6',t:'MTc1NDU3MDM4OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

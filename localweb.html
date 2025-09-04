@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growave Smart Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glow-border {
+            box-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+            border: 2px solid #14b8a6;
+        }
+
+        .light-glow {
+            filter: drop-shadow(0 0 8px #fbbf24);
+            color: #fbbf24;
+        }
+
+        .fan-spin {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-ring {
+            position: relative;
+        }
+
+        .status-ring::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            padding: 2px;
+            background: linear-gradient(45deg, var(--ring-color), transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: exclude;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 60px;
+            width: 100%;
+        }
+
+        .mini-chart {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-green-500 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-leaf text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-900">Growave Solutions Smart Dashboard</h1>
+                    <p class="text-sm text-gray-500">Energy Optimization System</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-6">
+                <div class="text-center">
+                    <div class="text-sm font-medium text-gray-900" id="currentMode">Smart Mode</div>
+                    <div class="text-xs text-gray-500">Active</div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-green-500 rounded-full pulse-dot"></div>
+                    <span class="text-sm font-medium text-green-600">Online</span>
+                </div>
+
+                <div class="text-right">
+                    <div class="text-sm font-medium text-gray-900" id="currentTime"></div>
+                    <div class="text-xs text-gray-500" id="currentDate"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="p-6 max-w-7xl mx-auto">
+        <!-- Global Controls -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-4">
+                <button id="killSwitch" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                    <i class="fas fa-power-off"></i>
+                    <span>Emergency Stop</span>
+                </button>
+
+                <div class="bg-white rounded-lg px-4 py-3 shadow-sm border">
+                    <div class="text-sm text-gray-500">Environment Health</div>
+                    <div class="text-2xl font-bold text-green-600" id="healthScore">87</div>
+                </div>
+            </div>
+
+            <button id="alertCenter" class="relative bg-white hover:bg-gray-50 p-3 rounded-lg shadow-sm border transition-colors">
+                <i class="fas fa-bell text-gray-600"></i>
+                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" id="alertCount">3</span>
+            </button>
+        </div>
+
+        <!-- Environmental Data Cards -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Environmental Monitoring</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Light Intensity -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="status-ring w-12 h-12 bg-green-100 rounded-full flex items-center justify-center" style="--ring-color: #10b981">
+                            <i class="fas fa-sun text-green-600"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">450</div>
+                            <div class="text-sm text-gray-500">lx</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4">
+                        <canvas id="lightChart" class="mini-chart"></canvas>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-500">Threshold</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="range" min="200" max="800" value="400" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <button class="text-xs bg-teal-500 text-white px-2 py-1 rounded">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Temperature -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="status-ring w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center" style="--ring-color: #f59e0b">
+                            <i class="fas fa-thermometer-half text-yellow-600"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">28</div>
+                            <div class="text-sm text-gray-500">°C</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4">
+                        <canvas id="tempChart" class="mini-chart"></canvas>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-500">Threshold</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="range" min="18" max="35" value="25" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <button class="text-xs bg-teal-500 text-white px-2 py-1 rounded">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Humidity -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="status-ring w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center" style="--ring-color: #3b82f6">
+                            <i class="fas fa-tint text-blue-600"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">65</div>
+                            <div class="text-sm text-gray-500">%</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4">
+                        <canvas id="humidityChart" class="mini-chart"></canvas>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-500">Threshold</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="range" min="30" max="80" value="60" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <button class="text-xs bg-teal-500 text-white px-2 py-1 rounded">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CO2 Level -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="status-ring w-12 h-12 bg-red-100 rounded-full flex items-center justify-center" style="--ring-color: #ef4444">
+                            <i class="fas fa-smog text-red-600"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">1200</div>
+                            <div class="text-sm text-gray-500">ppm</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4">
+                        <canvas id="co2Chart" class="mini-chart"></canvas>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-500">Threshold</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="range" min="400" max="2000" value="1000" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <button class="text-xs bg-teal-500 text-white px-2 py-1 rounded">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Occupancy Level -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="status-ring w-12 h-12 bg-green-100 rounded-full flex items-center justify-center" style="--ring-color: #10b981">
+                            <i class="fas fa-users text-green-600"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-gray-900">Medium</div>
+                            <div class="text-sm text-gray-500">level</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mb-4">
+                        <canvas id="occupancyChart" class="mini-chart"></canvas>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">Read Only</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Control Mode</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button class="mode-card glow-border bg-white rounded-xl p-6 text-left transition-all hover:shadow-lg" data-mode="smart">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-brain text-teal-600"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900">Smart Mode</h3>
+                    </div>
+                </button>
+
+                <button class="mode-card bg-white rounded-xl p-6 text-left transition-all hover:shadow-lg" data-mode="priority">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-list-ol text-blue-600"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900">Priority Mode</h3>
+                    </div>
+                </button>
+
+                <button class="mode-card bg-white rounded-xl p-6 text-left transition-all hover:shadow-lg" data-mode="hyper">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-bolt text-purple-600"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900">Hyper Mode</h3>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Zone Controls and Analytics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Zone Controls -->
+            <div class="lg:col-span-2">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Zone Control</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Zone 1 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-900">Zone 1</h3>
+                            <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">Auto</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <i class="fas fa-lightbulb text-2xl light-glow"></i>
+                                <i class="fas fa-fan text-2xl text-blue-500 fan-spin"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">High level</div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Lights</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Fan</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zone 2 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-900">Zone 2</h3>
+                            <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Manual</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <i class="fas fa-lightbulb text-2xl text-gray-400"></i>
+                                <i class="fas fa-fan text-2xl text-gray-400"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">Low level</div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Lights</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Fan</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zone 3 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-900">Zone 3</h3>
+                            <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">Auto</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <i class="fas fa-lightbulb text-2xl light-glow"></i>
+                                <i class="fas fa-fan text-2xl text-blue-500"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">Medium level</div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Lights</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Fan</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zone 4 -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-900">Zone 4</h3>
+                            <span class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">Auto</span>
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <i class="fas fa-lightbulb text-2xl light-glow"></i>
+                                <i class="fas fa-fan text-2xl text-blue-500 fan-spin"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">Medium level</div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Lights</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Fan</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Panel -->
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Analytics</h2>
+                <div class="space-y-4">
+                    <!-- Today's Savings -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <h3 class="font-semibold text-gray-900 mb-4">Today's Savings</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Energy Saved</span>
+                                <span class="font-semibold text-green-600">24.5 kWh</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">CO₂ Reduced</span>
+                                <span class="font-semibold text-green-600">18.4 kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Energy Usage Chart -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-gray-900">Energy Usage</h3>
+                            <select class="text-sm border border-gray-300 rounded px-2 py-1">
+                                <option>Daily</option>
+                                <option>Weekly</option>
+                            </select>
+                        </div>
+                        <div class="h-40">
+                            <canvas id="energyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Peak Usage -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <h3 class="font-semibold text-gray-900 mb-4">Peak Usage Time</h3>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-teal-600">2:30 PM</div>
+                            <div class="text-sm text-gray-500">Zone 1</div>
+                            <div class="text-sm text-gray-500">45.2 kW</div>
+                        </div>
+                    </div>
+
+                    <!-- Appliance Runtime -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border">
+                        <h3 class="font-semibold text-gray-900 mb-4">Runtime Today</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Lights</span>
+                                <span class="text-sm font-medium">6.5h</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-yellow-500 h-2 rounded-full" style="width: 65%"></div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Fans</span>
+                                <span class="text-sm font-medium">4.2h</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: 42%"></div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">AC</span>
+                                <span class="text-sm font-medium">3.8h</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-teal-500 h-2 rounded-full" style="width: 38%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">System Alerts</h3>
+                <button id="closeAlert" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex items-start space-x-3 p-3 bg-red-50 rounded-lg">
+                    <i class="fas fa-exclamation-triangle text-red-500 mt-1"></i>
+                    <div>
+                        <div class="font-medium text-red-900">CO₂ Level Critical</div>
+                        <div class="text-sm text-red-700">Zone 1: 1200 ppm (Limit: 1000 ppm)</div>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
+                    <i class="fas fa-exclamation-circle text-yellow-500 mt-1"></i>
+                    <div>
+                        <div class="font-medium text-yellow-900">Temperature Warning</div>
+                        <div class="text-sm text-yellow-700">Zone 2: 28°C (Approaching limit)</div>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+                    <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                    <div>
+                        <div class="font-medium text-blue-900">Idle Appliance</div>
+                        <div class="text-sm text-blue-700">Zone 3 fan running with low occupancy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update time and date
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // Mode selection
+        document.querySelectorAll('.mode-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('glow-border'));
+                this.classList.add('glow-border');
+
+                const mode = this.dataset.mode;
+                const modeNames = {
+                    'smart': 'Smart Mode',
+                    'priority': 'Priority Mode',
+                    'hyper': 'Hyper Mode'
+                };
+                document.getElementById('currentMode').textContent = modeNames[mode];
+            });
+        });
+
+        // Alert center
+        document.getElementById('alertCenter').addEventListener('click', function() {
+            document.getElementById('alertModal').classList.remove('hidden');
+            document.getElementById('alertModal').classList.add('flex');
+        });
+
+        document.getElementById('closeAlert').addEventListener('click', function() {
+            document.getElementById('alertModal').classList.add('hidden');
+            document.getElementById('alertModal').classList.remove('flex');
+        });
+
+        // Kill switch
+        document.getElementById('killSwitch').addEventListener('click', function() {
+            if (confirm('Are you sure you want to emergency stop all appliances?')) {
+                // Toggle all switches off
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+
+                // Remove glow effects
+                document.querySelectorAll('.light-glow').forEach(light => {
+                    light.classList.remove('light-glow');
+                    light.classList.add('text-gray-400');
+                });
+
+                document.querySelectorAll('.fan-spin').forEach(fan => {
+                    fan.classList.remove('fan-spin', 'text-blue-500');
+                    fan.classList.add('text-gray-400');
+                });
+
+                alert('Emergency stop activated. All appliances have been turned off.');
+            }
+        });
+
+        // Initialize mini charts
+        function createMiniChart(canvasId, data, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['', '', '', '', '', '', ''],
+                    datasets: [{
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    elements: { point: { radius: 0 } }
+                }
+            });
+        }
+
+        // Create mini charts
+        createMiniChart('lightChart', [420, 435, 450, 445, 460, 450, 455], '#10b981');
+        createMiniChart('tempChart', [26, 27, 28, 29, 28, 27, 28], '#f59e0b');
+        createMiniChart('humidityChart', [60, 62, 65, 68, 65, 63, 65], '#3b82f6');
+        createMiniChart('co2Chart', [800, 900, 1000, 1100, 1200, 1150, 1200], '#ef4444');
+        createMiniChart('occupancyChart', [8, 10, 12, 15, 12, 10, 12], '#10b981');
+
+        // Energy usage chart
+        const energyCtx = document.getElementById('energyChart').getContext('2d');
+        new Chart(energyCtx, {
+            type: 'line',
+            data: {
+                labels: ['6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
+                datasets: [{
+                    label: 'Energy Usage (kW)',
+                    data: [15, 35, 42, 45, 38, 20],
+                    borderColor: '#14b8a6',
+                    backgroundColor: '#14b8a620',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    }
+                }
+            }
+        });
+
+        // Toggle switches functionality
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const card = this.closest('.bg-white');
+                const isLight = this.closest('.flex').querySelector('.text-sm').textContent === 'Lights';
+                const icon = card.querySelector(isLight ? '.fa-lightbulb' : '.fa-fan');
+
+                if (this.checked) {
+                    if (isLight) {
+                        icon.classList.add('light-glow');
+                        icon.classList.remove('text-gray-400');
+                    } else {
+                        icon.classList.add('fan-spin', 'text-blue-500');
+                        icon.classList.remove('text-gray-400');
+                    }
+                } else {
+                    if (isLight) {
+                        icon.classList.remove('light-glow');
+                        icon.classList.add('text-gray-400');
+                    } else {
+                        icon.classList.remove('fan-spin', 'text-blue-500');
+                        icon.classList.add('text-gray-400');
+                    }
+                }
+            });
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // Update health score
+            const healthScore = document.getElementById('healthScore');
+            const currentScore = parseInt(healthScore.textContent);
+            const newScore = Math.max(75, Math.min(95, currentScore + (Math.random() - 0.5) * 4));
+            healthScore.textContent = Math.round(newScore);
+
+            // Update health score color
+            if (newScore >= 85) {
+                healthScore.className = 'text-2xl font-bold text-green-600';
+            } else if (newScore >= 75) {
+                healthScore.className = 'text-2xl font-bold text-yellow-600';
+            } else {
+                healthScore.className = 'text-2xl font-bold text-red-600';
+            }
+        }, 5000);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96d16ebe539f4019',t:'MTc1NDg0OTI0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
